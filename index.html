@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metabolic Tracker — Alexander Birk</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222222;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0ede8;
+    --muted: #888884;
+    --accent: #c8f560;
+    --accent2: #60c8f5;
+    --accent3: #f5a260;
+    --danger: #f56060;
+    --good: #60f5a2;
+    --warn: #f5d060;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .header-title { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 0.1em; }
+  .header-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  .metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, var(--accent));
+  }
+  .metric-label { font-size: 10px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; font-family: var(--mono); }
+  .metric-value { font-size: 28px; font-weight: 300; color: var(--text); font-family: var(--mono); }
+  .metric-unit { font-size: 11px; color: var(--muted); }
+  .metric-status { font-size: 10px; margin-top: 4px; font-family: var(--mono); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .card-title {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .chart-wrap { position: relative; height: 200px; width: 100%; }
+
+  .log-form { display: flex; flex-direction: column; gap: 12px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-family: var(--mono); }
+  .field input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--muted); }
+
+  .btn-log {
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.2s;
+  }
+  .btn-log:hover { opacity: 0.85; }
+
+  .boz-result {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--surface2);
+    border-radius: 8px;
+    display: none;
+  }
+  .boz-number { font-size: 48px; font-weight: 300; font-family: var(--mono); }
+  .boz-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-family: var(--mono); margin-bottom: 4px; }
+  .boz-interp { font-size: 12px; margin-top: 8px; font-family: var(--mono); }
+  .boz-bar { height: 4px; border-radius: 2px; margin-top: 12px; background: var(--border); position: relative; overflow: hidden; }
+  .boz-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  .sleep-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .sleep-day { background: var(--surface2); border-radius: 6px; padding: 8px 4px; text-align: center; }
+  .sleep-date { font-size: 9px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
+  .sleep-deep { font-size: 16px; font-weight: 500; font-family: var(--mono); }
+  .sleep-type { font-size: 9px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+
+  .tab-row { display: flex; gap: 6px; margin-bottom: 1rem; }
+  .tab {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--mono);
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.2s;
+  }
+  .tab.active { background: var(--accent); color: #0f0f0f; border-color: var(--accent); }
+
+  .log-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .log-table th { color: var(--muted); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+  .log-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .log-table tr:last-child td { border-bottom: none; }
+
+  .upload-area {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .upload-area:hover { border-color: var(--accent); }
+  .upload-label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .upload-label span { color: var(--accent); }
+
+  .interp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+  .interp-item { background: var(--surface2); border-radius: 6px; padding: 10px 12px; }
+  .interp-range { font-size: 13px; font-family: var(--mono); font-weight: 500; }
+  .interp-desc { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  .full-card { margin-bottom: 1.5rem; }
+
+  footer { border-top: 1px solid var(--border); padding: 1.5rem 2rem; text-align: center; font-size: 10px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">METABOLIC TRACKER</div>
+    <div class="header-sub">Alexander Birk — Citizen Scientist — Forensisk Analytiker</div>
+  </div>
+  <div class="header-sub" id="current-date"></div>
+</header>
+
+<div class="container">
+
+  <div class="metric-row">
+    <div class="metric" style="--accent-color: var(--accent)">
+      <div class="metric-label">Fasting glucose</div>
+      <div class="metric-value" id="m-glucose">—<span class="metric-unit"> mmol/L</span></div>
+      <div class="metric-status" id="s-glucose" style="color: var(--muted)">no data yet</div>
+    </div>
+    <div class="metric" style="--accent-color: var(--accent2)">
+      <div class="metric-label">Ketones</div>
+      <div class="metric-value" id="m-ketones">—<span class="metric-unit"> mmol/L</span></div>
+      <div class="metric-status" id="s-ketones" style="color: var(--muted)">no data yet</div>
+    </div>
+    <div class="metric" style="--accent-color: var(--accent3)">
+      <div class="metric-label">Dr. Boz ratio</div>
+      <div class="metric-value" id="m-boz">—</div>
+      <div class="metric-status" id="s-boz" style="color: var(--muted)">no data yet</div>
+    </div>
+    <div class="metric" style="--accent-color: #7F77DD">
+      <div class="metric-label">Deep sleep avg</div>
+      <div class="metric-value" id="m-deep">79<span class="metric-unit"> min</span></div>
+      <div class="metric-status" style="color: var(--warn)">room to improve</div>
+    </div>
+    <div class="metric" style="--accent-color: var(--good)">
+      <div class="metric-label">Resting HR avg</div>
+      <div class="metric-value" id="m-hr">55<span class="metric-unit"> bpm</span></div>
+      <div class="metric-status" style="color: var(--good)">good</div>
+    </div>
+    <div class="metric" style="--accent-color: var(--accent)">
+      <div class="metric-label">Days tracked</div>
+      <div class="metric-value" id="m-days">0</div>
+      <div class="metric-status" style="color: var(--muted)">experiment</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Log today</div>
+      <div class="log-form">
+        <div class="form-row">
+          <div class="field">
+            <label>Fasting glucose (mmol/L)</label>
+            <input type="number" id="in-glucose" placeholder="e.g. 5.2" step="0.1" min="2" max="15">
+          </div>
+          <div class="field">
+            <label>Ketones (mmol/L)</label>
+            <input type="number" id="in-ketones" placeholder="e.g. 0.4" step="0.1" min="0" max="8">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Weight (kg)</label>
+            <input type="number" id="in-weight" placeholder="e.g. 88.5" step="0.1">
+          </div>
+          <div class="field">
+            <label>Energy (1-10)</label>
+            <input type="number" id="in-energy" placeholder="1-10" min="1" max="10">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Mental clarity (1-10)</label>
+            <input type="number" id="in-clarity" placeholder="1-10" min="1" max="10">
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <input type="text" id="in-notes" placeholder="e.g. mackerel for lunch">
+          </div>
+        </div>
+        <button class="btn-log" onclick="logEntry()">+ LOG ENTRY</button>
+        <div id="log-feedback" style="font-size: 11px; color: var(--muted); font-family: var(--mono); min-height: 16px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Dr. Boz ratio calculator</div>
+      <p style="font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 1rem; line-height: 1.6;">
+        Glucose (mmol/L) ÷ Ketones (mmol/L) × 18<br>
+        Enter values below or use today's logged readings.
+      </p>
+      <div class="form-row" style="margin-bottom: 12px;">
+        <div class="field">
+          <label>Glucose (mmol/L)</label>
+          <input type="number" id="boz-glucose" placeholder="e.g. 5.2" step="0.1" oninput="calcBoz()">
+        </div>
+        <div class="field">
+          <label>Ketones (mmol/L)</label>
+          <input type="number" id="boz-ketones" placeholder="e.g. 0.5" step="0.1" oninput="calcBoz()">
+        </div>
+      </div>
+      <div class="boz-result" id="boz-result">
+        <div class="boz-label">Dr. Boz ratio</div>
+        <div class="boz-number" id="boz-number">—</div>
+        <div class="boz-interp" id="boz-interp"></div>
+        <div class="boz-bar"><div class="boz-fill" id="boz-fill"></div></div>
+      </div>
+      <div style="margin-top: 1rem;">
+        <div class="interp-grid">
+          <div class="interp-item">
+            <div class="interp-range" style="color: var(--good)">&lt; 40</div>
+            <div class="interp-desc">excellent metabolic health</div>
+          </div>
+          <div class="interp-item">
+            <div class="interp-range" style="color: var(--accent)">40–80</div>
+            <div class="interp-desc">good — on track</div>
+          </div>
+          <div class="interp-item">
+            <div class="interp-range" style="color: var(--warn)">80–120</div>
+            <div class="interp-desc">fair — room to improve</div>
+          </div>
+          <div class="interp-item">
+            <div class="interp-range" style="color: var(--danger)">&gt; 120</div>
+            <div class="interp-desc">metabolic stress</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card full-card">
+    <div class="card-title">Trends</div>
+    <div class="tab-row">
+      <button class="tab active" onclick="switchTab('sleep', this)">Sleep</button>
+      <button class="tab" onclick="switchTab('glucose', this)">Glucose & ketones</button>
+      <button class="tab" onclick="switchTab('boz', this)">Dr. Boz ratio</button>
+      <button class="tab" onclick="switchTab('scores', this)">Energy & clarity</button>
+      <button class="tab" onclick="switchTab('weight', this)">Weight</button>
+    </div>
+    <div id="tab-sleep"><div class="chart-wrap"><canvas id="c-sleep"></canvas></div></div>
+    <div id="tab-glucose" style="display:none"><div class="chart-wrap"><canvas id="c-glucose"></canvas></div></div>
+    <div id="tab-boz" style="display:none"><div class="chart-wrap"><canvas id="c-boz"></canvas></div></div>
+    <div id="tab-scores" style="display:none"><div class="chart-wrap"><canvas id="c-scores"></canvas></div></div>
+    <div id="tab-weight" style="display:none"><div class="chart-wrap"><canvas id="c-weight"></canvas></div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Sleep — last 7 nights (Amazfit)</div>
+      <div class="sleep-grid" id="sleep-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Import Amazfit sleep CSV</div>
+      <div class="upload-area" onclick="document.getElementById('sleep-upload').click()">
+        <div class="upload-label">Click to upload <span>SLEEP_*.csv</span></div>
+        <div class="upload-label" style="margin-top: 4px;">from your Amazfit/Zepp export</div>
+        <input type="file" id="sleep-upload" accept=".csv" style="display:none" onchange="parseSleepCSV(this)">
+      </div>
+      <div id="upload-status" style="font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 8px; min-height: 16px;"></div>
+    </div>
+  </div>
+
+  <div class="card full-card">
+    <div class="card-title">Log history</div>
+    <div style="overflow-x: auto;">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Glucose</th>
+            <th>Ketones</th>
+            <th>Boz ratio</th>
+            <th>Weight</th>
+            <th>Energy</th>
+            <th>Clarity</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="log-tbody">
+          <tr><td colspan="8" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet — log your first reading above</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card full-card">
+    <div class="card-title">Reference — glucose & ketones (Danish mmol/L)</div>
+    <div class="interp-grid">
+      <div class="interp-item">
+        <div class="interp-range" style="color: var(--good)">Glucose &lt; 5.6</div>
+        <div class="interp-desc">optimal fasting</div>
+      </div>
+      <div class="interp-item">
+        <div class="interp-range" style="color: var(--warn)">Glucose 5.6–7.0</div>
+        <div class="interp-desc">borderline — watch</div>
+      </div>
+      <div class="interp-item">
+        <div class="interp-range" style="color: var(--danger)">Glucose &gt; 7.0</div>
+        <div class="interp-desc">elevated — act</div>
+      </div>
+      <div class="interp-item">
+        <div class="interp-range" style="color: var(--muted)">Ketones &lt; 0.5</div>
+        <div class="interp-desc">baseline — not in ketosis</div>
+      </div>
+      <div class="interp-item">
+        <div class="interp-range" style="color: var(--accent2)">Ketones 0.5–3.0</div>
+        <div class="interp-desc">nutritional ketosis</div>
+      </div>
+      <div class="interp-item">
+        <div class="interp-range" style="color: var(--good)">Deep sleep &gt; 90 min</div>
+        <div class="interp-desc">excellent recovery</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Alexander Birk — Forensisk Analytiker i Metabolisk og Kognitiv Sundhed — Citizen Scientist — n=1
+</footer>
+
+<script>
+document.getElementById('current-date').textContent = new Date().toLocaleDateString('da-DK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+const STORAGE_KEY = 'metabolic-logs-v1';
+const SLEEP_KEY = 'amazfit-sleep-v1';
+
+let logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let sleepData = JSON.parse(localStorage.getItem(SLEEP_KEY) || JSON.stringify([
+  { date: 'Mar 20', deep: 68, rem: 100, shallow: 320 },
+  { date: 'Mar 21', deep: 63, rem: 125, shallow: 348 },
+  { date: 'Mar 22', deep: 191, rem: 108, shallow: 384 },
+  { date: 'Mar 23', deep: 68, rem: 142, shallow: 306 },
+  { date: 'Mar 24', deep: 64, rem: 107, shallow: 358 },
+  { date: 'Mar 25', deep: 80, rem: 135, shallow: 313 },
+  { date: 'Mar 26', deep: 75, rem: 113, shallow: 355 },
+  { date: 'Mar 27', deep: 61, rem: 95, shallow: 341 },
+  { date: 'Mar 28', deep: 52, rem: 80, shallow: 370 },
+  { date: 'Mar 29', deep: 84, rem: 121, shallow: 345 },
+  { date: 'Mar 30', deep: 51, rem: 86, shallow: 376 },
+  { date: 'Mar 31', deep: 61, rem: 127, shallow: 310 },
+  { date: 'Apr 1', deep: 74, rem: 110, shallow: 368 },
+  { date: 'Apr 2', deep: 66, rem: 106, shallow: 339 },
+  { date: 'Apr 3', deep: 53, rem: 121, shallow: 301 },
+]));
+
+let charts = {};
+
+function saveLogs() { localStorage.setItem(STORAGE_KEY, JSON.stringify(logs)); }
+function saveSleep() { localStorage.setItem(SLEEP_KEY, JSON.stringify(sleepData)); }
+
+function calcBozRatio(g, k) {
+  if (!g || !k || k === 0) return null;
+  return Math.round((g * 18) / k);
+}
+
+function bozColor(ratio) {
+  if (ratio < 40) return '#60f5a2';
+  if (ratio < 80) return '#c8f560';
+  if (ratio < 120) return '#f5d060';
+  return '#f56060';
+}
+
+function bozText(ratio) {
+  if (ratio < 40) return 'Excellent metabolic health';
+  if (ratio < 80) return 'Good — on track';
+  if (ratio < 120) return 'Fair — room to improve';
+  return 'Metabolic stress — tighten diet';
+}
+
+function calcBoz() {
+  const g = parseFloat(document.getElementById('boz-glucose').value);
+  const k = parseFloat(document.getElementById('boz-ketones').value);
+  const result = document.getElementById('boz-result');
+  if (isNaN(g) || isNaN(k) || k === 0) { result.style.display = 'none'; return; }
+  const ratio = calcBozRatio(g, k);
+  const col = bozColor(ratio);
+  result.style.display = 'block';
+  document.getElementById('boz-number').textContent = ratio;
+  document.getElementById('boz-number').style.color = col;
+  document.getElementById('boz-interp').textContent = bozText(ratio);
+  document.getElementById('boz-interp').style.color = col;
+  const pct = Math.min(100, (ratio / 200) * 100);
+  document.getElementById('boz-fill').style.width = pct + '%';
+  document.getElementById('boz-fill').style.background = col;
+}
+
+function logEntry() {
+  const g = parseFloat(document.getElementById('in-glucose').value);
+  const k = parseFloat(document.getElementById('in-ketones').value);
+  const w = parseFloat(document.getElementById('in-weight').value);
+  const e = parseInt(document.getElementById('in-energy').value);
+  const c = parseInt(document.getElementById('in-clarity').value);
+  const n = document.getElementById('in-notes').value;
+  const today = new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'short' });
+  const boz = calcBozRatio(g, k);
+
+  const entry = {
+    date: today,
+    glucose: isNaN(g) ? null : g,
+    ketones: isNaN(k) ? null : k,
+    boz: boz,
+    weight: isNaN(w) ? null : w,
+    energy: isNaN(e) ? null : e,
+    clarity: isNaN(c) ? null : c,
+    notes: n
+  };
+
+  logs.push(entry);
+  saveLogs();
+
+  if (entry.glucose) {
+    document.getElementById('m-glucose').innerHTML = entry.glucose.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
+    const gs = entry.glucose < 5.6 ? 'optimal' : entry.glucose < 7.0 ? 'borderline' : 'elevated';
+    const gc = entry.glucose < 5.6 ? 'var(--good)' : entry.glucose < 7.0 ? 'var(--warn)' : 'var(--danger)';
+    document.getElementById('s-glucose').textContent = gs;
+    document.getElementById('s-glucose').style.color = gc;
+    document.getElementById('boz-glucose').value = entry.glucose;
+  }
+  if (entry.ketones) {
+    document.getElementById('m-ketones').innerHTML = entry.ketones.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
+    const ks = entry.ketones < 0.5 ? 'below ketosis' : entry.ketones < 3.0 ? 'nutritional ketosis' : 'deep ketosis';
+    const kc = entry.ketones < 0.5 ? 'var(--muted)' : 'var(--accent2)';
+    document.getElementById('s-ketones').textContent = ks;
+    document.getElementById('s-ketones').style.color = kc;
+    document.getElementById('boz-ketones').value = entry.ketones;
+    calcBoz();
+  }
+  if (boz) {
+    document.getElementById('m-boz').textContent = boz;
+    document.getElementById('m-boz').style.color = bozColor(boz);
+    document.getElementById('s-boz').textContent = boz < 80 ? 'good' : boz < 120 ? 'watch' : 'act';
+    document.getElementById('s-boz').style.color = bozColor(boz);
+  }
+
+  document.getElementById('m-days').textContent = logs.length;
+
+  ['in-glucose','in-ketones','in-weight','in-energy','in-clarity','in-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+
+  document.getElementById('log-feedback').textContent = 'Logged ' + today + ' at ' + new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+
+  renderTable();
+  updateCharts();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('log-tbody');
+  if (logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = [...logs].reverse().map(l => `
+    <tr>
+      <td>${l.date}</td>
+      <td style="color:${l.glucose ? (l.glucose < 5.6 ? '#60f5a2' : l.glucose < 7 ? '#f5d060' : '#f56060') : 'var(--muted)'}">${l.glucose ? l.glucose.toFixed(1) : '—'}</td>
+      <td style="color:${l.ketones ? (l.ketones >= 0.5 ? '#60c8f5' : 'var(--muted)') : 'var(--muted)'}">${l.ketones ? l.ketones.toFixed(1) : '—'}</td>
+      <td style="color:${l.boz ? bozColor(l.boz) : 'var(--muted)'}">${l.boz || '—'}</td>
+      <td>${l.weight ? l.weight.toFixed(1) + ' kg' : '—'}</td>
+      <td>${l.energy || '—'}</td>
+      <td>${l.clarity || '—'}</td>
+      <td style="color: var(--muted)">${l.notes || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function renderSleepGrid() {
+  const grid = document.getElementById('sleep-grid');
+  const last7 = sleepData.slice(-7);
+  grid.innerHTML = last7.map(d => {
+    const col = d.deep >= 90 ? '#60f5a2' : d.deep >= 60 ? '#f5d060' : '#f56060';
+    return `<div class="sleep-day">
+      <div class="sleep-date">${d.date}</div>
+      <div class="sleep-deep" style="color:${col}">${d.deep}</div>
+      <div class="sleep-type">deep</div>
+      <div class="sleep-type" style="color:#7F77DD;margin-top:4px">${d.rem}</div>
+      <div class="sleep-type">rem</div>
+    </div>`;
+  }).join('');
+
+  const avgDeep = Math.round(sleepData.reduce((a,b) => a + b.deep, 0) / sleepData.length);
+  document.getElementById('m-deep').innerHTML = avgDeep + '<span class="metric-unit"> min</span>';
+}
+
+function parseSleepCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').filter(l => l.trim() && !l.startsWith('date'));
+    const parsed = lines.map(line => {
+      const [date, deep, shallow, wake, start, stop, rem] = line.split(',');
+      if (!date || !deep) return null;
+      const d = new Date(date);
+      const label = d.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' });
+      return { date: label, deep: parseInt(deep) || 0, rem: parseInt(rem) || 0, shallow: parseInt(shallow) || 0 };
+    }).filter(Boolean);
+    if (parsed.length > 0) {
+      sleepData = parsed;
+      saveSleep();
+      renderSleepGrid();
+      updateCharts();
+      document.getElementById('upload-status').textContent = parsed.length + ' nights imported';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  ['sleep','glucose','boz','scores','weight'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+  });
+}
+
+function updateCharts() {
+  const labels = logs.map(l => l.date);
+
+  if (charts.glucose) charts.glucose.destroy();
+  charts.glucose = new Chart(document.getElementById('c-glucose'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Glucose mmol/L', data: logs.map(l => l.glucose), borderColor: '#f56060', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#f56060' },
+        { label: 'Ketones mmol/L', data: logs.map(l => l.ketones), borderColor: '#60c8f5', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#60c8f5' }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, labels: { color: '#888884', font: { family: 'DM Mono', size: 11 } } } }, scales: { y: { beginAtZero: true, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }, x: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } } } }
+  });
+
+  if (charts.boz) charts.boz.destroy();
+  charts.boz = new Chart(document.getElementById('c-boz'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Dr. Boz ratio', data: logs.map(l => l.boz), backgroundColor: logs.map(l => l.boz ? bozColor(l.boz) : '#444') }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }, x: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } } } }
+  });
+
+  if (charts.scores) charts.scores.destroy();
+  charts.scores = new Chart(document.getElementById('c-scores'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Energy', data: logs.map(l => l.energy), borderColor: '#f5a260', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4 },
+        { label: 'Clarity', data: logs.map(l => l.clarity), borderColor: '#7F77DD', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4 }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, labels: { color: '#888884', font: { family: 'DM Mono', size: 11 } } } }, scales: { y: { min: 0, max: 10, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }, x: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } } } }
+  });
+
+  if (charts.weight) charts.weight.destroy();
+  charts.weight = new Chart(document.getElementById('c-weight'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{ label: 'Weight kg', data: logs.map(l => l.weight), borderColor: '#c8f560', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#c8f560' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }, x: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } } } }
+  });
+}
+
+if (charts.sleep) charts.sleep.destroy();
+charts.sleep = new Chart(document.getElementById('c-sleep'), {
+  type: 'bar',
+  data: {
+    labels: sleepData.map(d => d.date),
+    datasets: [
+      { label: 'Deep', data: sleepData.map(d => d.deep), backgroundColor: '#185FA5', stack: 's' },
+      { label: 'REM', data: sleepData.map(d => d.rem), backgroundColor: '#7F77DD', stack: 's' },
+      { label: 'Shallow', data: sleepData.map(d => d.shallow), backgroundColor: '#2a2a2a', stack: 's' }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: true, labels: { color: '#888884', font: { family: 'DM Mono', size: 11 } } } },
+    scales: {
+      x: { stacked: true, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 }, maxRotation: 45, autoSkip: false } },
+      y: { stacked: true, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }
+    }
+  }
+});
+
+renderSleepGrid();
+renderTable();
+document.getElementById('m-days').textContent = logs.length;
+if (logs.length > 0) {
+  const last = logs[logs.length - 1];
+  if (last.glucose) document.getElementById('m-glucose').innerHTML = last.glucose.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
+  if (last.ketones) document.getElementById('m-ketones').innerHTML = last.ketones.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
+  if (last.boz) { document.getElementById('m-boz').textContent = last.boz; document.getElementById('m-boz').style.color = bozColor(last.boz); }
+  updateCharts();
+}
+</script>
+</body>
+</html>
