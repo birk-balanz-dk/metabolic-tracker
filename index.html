@@ -245,6 +245,13 @@
     <div class="card">
       <div class="card-title">Log today</div>
       <div class="log-form">
+        <div class="field">
+          <label>Tidspunkt</label>
+          <select id="in-timeofday" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:15px;padding:10px 12px;outline:none;font-weight:500;">
+            <option value="Morgen">Morgenmåling</option>
+            <option value="Aften">Aftenmåling</option>
+          </select>
+        </div>
         <div class="form-row">
           <div class="field">
             <label>Fasting glucose (mmol/L)</label>
@@ -279,51 +286,6 @@
         <div id="log-feedback" style="font-size: 11px; color: var(--muted); font-family: var(--mono); min-height: 16px;"></div>
       </div>
     </div>
-
-    <div class="card">
-      <div class="card-title">Dr. Boz ratio calculator</div>
-      <p style="font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 1rem; line-height: 1.6;">
-        Glucose (mmol/L) ÷ Ketones (mmol/L) × 18<br>
-        Enter values below or use today's logged readings.
-      </p>
-      <div class="form-row" style="margin-bottom: 12px;">
-        <div class="field">
-          <label>Glucose (mmol/L)</label>
-          <input type="number" id="boz-glucose" placeholder="e.g. 5.2" step="0.1" oninput="calcBoz()">
-        </div>
-        <div class="field">
-          <label>Ketones (mmol/L)</label>
-          <input type="number" id="boz-ketones" placeholder="e.g. 0.5" step="0.1" oninput="calcBoz()">
-        </div>
-      </div>
-      <div class="boz-result" id="boz-result">
-        <div class="boz-label">Dr. Boz ratio</div>
-        <div class="boz-number" id="boz-number">—</div>
-        <div class="boz-interp" id="boz-interp"></div>
-        <div class="boz-bar"><div class="boz-fill" id="boz-fill"></div></div>
-      </div>
-      <div style="margin-top: 1rem;">
-        <div class="interp-grid">
-          <div class="interp-item">
-            <div class="interp-range" style="color: var(--good)">&lt; 40</div>
-            <div class="interp-desc">excellent metabolic health</div>
-          </div>
-          <div class="interp-item">
-            <div class="interp-range" style="color: var(--accent)">40–80</div>
-            <div class="interp-desc">good — on track</div>
-          </div>
-          <div class="interp-item">
-            <div class="interp-range" style="color: var(--warn)">80–120</div>
-            <div class="interp-desc">fair — room to improve</div>
-          </div>
-          <div class="interp-item">
-            <div class="interp-range" style="color: var(--danger)">&gt; 120</div>
-            <div class="interp-desc">metabolic stress</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div class="card full-card">
     <div class="card-title">Trends</div>
@@ -365,6 +327,8 @@
         <thead>
           <tr>
             <th>Date</th>
+            <th>Time</th>
+            <th>Tidspunkt</th>
             <th>Glucose</th>
             <th>Ketones</th>
             <th>Boz ratio</th>
@@ -375,7 +339,7 @@
           </tr>
         </thead>
         <tbody id="log-tbody">
-          <tr><td colspan="8" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet — log your first reading above</td></tr>
+          <tr><td colspan="9" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet — log your first reading above</td></tr>
         </tbody>
       </table>
     </div>
@@ -490,11 +454,17 @@ function logEntry() {
   const e = parseInt(document.getElementById('in-energy').value);
   const c = parseInt(document.getElementById('in-clarity').value);
   const n = document.getElementById('in-notes').value;
-  const today = new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'short' });
+  const timeofday = document.getElementById('in-timeofday').value;
+  
+  const now = new Date();
+  const today = now.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' });
+  const timestamp = now.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
   const boz = calcBozRatio(g, k);
 
   const entry = {
     date: today,
+    timestamp: timestamp,
+    timeofday: timeofday,
     glucose: isNaN(g) ? null : g,
     ketones: isNaN(k) ? null : k,
     boz: boz,
@@ -513,7 +483,6 @@ function logEntry() {
     const gc = entry.glucose < 5.6 ? 'var(--good)' : entry.glucose < 7.0 ? 'var(--warn)' : 'var(--danger)';
     document.getElementById('s-glucose').textContent = gs;
     document.getElementById('s-glucose').style.color = gc;
-    document.getElementById('boz-glucose').value = entry.glucose;
   }
   if (entry.ketones) {
     document.getElementById('m-ketones').innerHTML = entry.ketones.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
@@ -521,8 +490,6 @@ function logEntry() {
     const kc = entry.ketones < 0.5 ? 'var(--muted)' : 'var(--accent2)';
     document.getElementById('s-ketones').textContent = ks;
     document.getElementById('s-ketones').style.color = kc;
-    document.getElementById('boz-ketones').value = entry.ketones;
-    calcBoz();
   }
   if (boz) {
     document.getElementById('m-boz').textContent = boz;
@@ -537,7 +504,7 @@ function logEntry() {
     document.getElementById(id).value = '';
   });
 
-  document.getElementById('log-feedback').textContent = 'Logged ' + today + ' at ' + new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('log-feedback').textContent = `Logged ${timeofday.toLowerCase()}måling ${today} kl ${timestamp}`;
 
   renderTable();
   updateCharts();
@@ -546,12 +513,13 @@ function logEntry() {
 function renderTable() {
   const tbody = document.getElementById('log-tbody');
   if (logs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet</td></tr>';
     return;
   }
   tbody.innerHTML = [...logs].reverse().map(l => `
     <tr>
       <td>${l.date}</td>
+      <td style="color: var(--accent); font-weight: 600;">${l.timeofday || '—'}</td>
       <td style="color:${l.glucose ? (l.glucose < 5.6 ? '#60f5a2' : l.glucose < 7 ? '#f5d060' : '#f56060') : 'var(--muted)'}">${l.glucose ? l.glucose.toFixed(1) : '—'}</td>
       <td style="color:${l.ketones ? (l.ketones >= 0.5 ? '#60c8f5' : 'var(--muted)') : 'var(--muted)'}">${l.ketones ? l.ketones.toFixed(1) : '—'}</td>
       <td style="color:${l.boz ? bozColor(l.boz) : 'var(--muted)'}">${l.boz || '—'}</td>
