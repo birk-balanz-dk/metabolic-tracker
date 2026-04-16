@@ -245,12 +245,18 @@
     <div class="card">
       <div class="card-title">Log today</div>
       <div class="log-form">
-        <div class="field">
-          <label>Tidspunkt</label>
-          <select id="in-timeofday" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:15px;padding:10px 12px;outline:none;font-weight:500;">
-            <option value="Morgen">Morgenmåling</option>
-            <option value="Aften">Aftenmåling</option>
-          </select>
+        <div class="form-row">
+          <div class="field">
+            <label>Dato</label>
+            <input type="date" id="in-date" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:15px;padding:10px 12px;outline:none;font-weight:500;">
+          </div>
+          <div class="field">
+            <label>Tidspunkt</label>
+            <select id="in-timeofday" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:15px;padding:10px 12px;outline:none;font-weight:500;">
+              <option value="Morgen">Morgenmåling</option>
+              <option value="Aften">Aftenmåling</option>
+            </select>
+          </div>
         </div>
         <div class="form-row">
           <div class="field">
@@ -552,9 +558,17 @@ function logEntry() {
   const n = document.getElementById('in-notes').value;
   const timeofday = document.getElementById('in-timeofday').value;
   
-  const now = new Date();
-  const today = now.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' });
-  const timestamp = now.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+  // Use date picker value or default to today
+  const dateInput = document.getElementById('in-date').value;
+  let selectedDate;
+  if (dateInput) {
+    selectedDate = new Date(dateInput + 'T12:00:00'); // Avoid timezone issues
+  } else {
+    selectedDate = new Date();
+  }
+  
+  const today = selectedDate.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' });
+  const timestamp = new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
   const boz = calcBozRatio(g, k);
 
   const entry = {
@@ -599,6 +613,7 @@ function logEntry() {
   ['in-glucose','in-ketones','in-weight','in-energy','in-clarity','in-notes'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('in-date').valueAsDate = new Date(); // Reset to today
 
   document.getElementById('log-feedback').textContent = `Logged ${timeofday.toLowerCase()}måling ${today} kl ${timestamp}`;
 
@@ -750,6 +765,9 @@ charts.sleep = new Chart(document.getElementById('c-sleep'), {
 });
 
 renderSleepGrid();
+
+// Set today as default date
+document.getElementById('in-date').valueAsDate = new Date();
 
 // Initialize - load from GitHub first
 (async function init() {
