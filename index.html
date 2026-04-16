@@ -252,7 +252,7 @@
           </div>
           <div class="field">
             <label>Tidspunkt</label>
-            <select id="in-timeofday" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:15px;padding:10px 12px;outline:none;font-weight:500;">
+            <select id="in-timeofday" onchange="toggleMorningFields()" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:15px;padding:10px 12px;outline:none;font-weight:500;">
               <option value="Morgen">Morgenmåling</option>
               <option value="Aften">Aftenmåling</option>
             </select>
@@ -286,6 +286,16 @@
           <div class="field">
             <label>Notes</label>
             <input type="text" id="in-notes" placeholder="e.g. mackerel for lunch">
+          </div>
+        </div>
+        <div class="form-row" id="morning-only-fields" style="display:none;">
+          <div class="field">
+            <label>Sleep score (Zepp)</label>
+            <input type="number" id="in-sleep-score" placeholder="e.g. 85" min="0" max="100">
+          </div>
+          <div class="field">
+            <label>Stress level (Zepp avg)</label>
+            <input type="number" id="in-stress" placeholder="e.g. 42" min="0" max="100">
           </div>
         </div>
         <button class="btn-log" onclick="logEntry()">+ LOG ENTRY</button>
@@ -341,11 +351,13 @@
             <th>Weight</th>
             <th>Energy</th>
             <th>Clarity</th>
+            <th>Sleep</th>
+            <th>Stress</th>
             <th>Notes</th>
           </tr>
         </thead>
         <tbody id="log-tbody">
-          <tr><td colspan="9" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet — log your first reading above</td></tr>
+          <tr><td colspan="12" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet — log your first reading above</td></tr>
         </tbody>
       </table>
     </div>
@@ -532,6 +544,19 @@ function bozText(ratio) {
   return 'Metabolic stress — tighten diet';
 }
 
+function toggleMorningFields() {
+  const timeofday = document.getElementById('in-timeofday').value;
+  const morningFields = document.getElementById('morning-only-fields');
+  if (timeofday === 'Morgen') {
+    morningFields.style.display = 'grid';
+  } else {
+    morningFields.style.display = 'none';
+    // Clear values when hiding
+    document.getElementById('in-sleep-score').value = '';
+    document.getElementById('in-stress').value = '';
+  }
+}
+
 function calcBoz() {
   const g = parseFloat(document.getElementById('boz-glucose').value);
   const k = parseFloat(document.getElementById('boz-ketones').value);
@@ -557,6 +582,8 @@ function logEntry() {
   const c = parseInt(document.getElementById('in-clarity').value);
   const n = document.getElementById('in-notes').value;
   const timeofday = document.getElementById('in-timeofday').value;
+  const sleepScore = parseInt(document.getElementById('in-sleep-score').value);
+  const stress = parseInt(document.getElementById('in-stress').value);
   
   // Use date picker value or default to today
   const dateInput = document.getElementById('in-date').value;
@@ -581,6 +608,8 @@ function logEntry() {
     weight: isNaN(w) ? null : w,
     energy: isNaN(e) ? null : e,
     clarity: isNaN(c) ? null : c,
+    sleepScore: isNaN(sleepScore) ? null : sleepScore,
+    stress: isNaN(stress) ? null : stress,
     notes: n
   };
 
@@ -610,7 +639,7 @@ function logEntry() {
 
   document.getElementById('m-days').textContent = logs.length;
 
-  ['in-glucose','in-ketones','in-weight','in-energy','in-clarity','in-notes'].forEach(id => {
+  ['in-glucose','in-ketones','in-weight','in-energy','in-clarity','in-notes','in-sleep-score','in-stress'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('in-date').valueAsDate = new Date(); // Reset to today
@@ -624,7 +653,7 @@ function logEntry() {
 function renderTable() {
   const tbody = document.getElementById('log-tbody');
   if (logs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet</td></tr>';
     return;
   }
   tbody.innerHTML = [...logs].reverse().map(l => `
@@ -638,6 +667,8 @@ function renderTable() {
       <td>${l.weight ? l.weight.toFixed(1) + ' kg' : '—'}</td>
       <td>${l.energy || '—'}</td>
       <td>${l.clarity || '—'}</td>
+      <td style="color:${l.sleepScore ? (l.sleepScore >= 80 ? '#60f5a2' : l.sleepScore >= 60 ? '#f5d060' : '#f56060') : 'var(--muted)'}">${l.sleepScore || '—'}</td>
+      <td style="color:${l.stress ? (l.stress <= 30 ? '#60f5a2' : l.stress <= 60 ? '#f5d060' : '#f56060') : 'var(--muted)'}">${l.stress || '—'}</td>
       <td style="color: var(--muted)">${l.notes || '—'}</td>
     </tr>
   `).join('');
@@ -768,6 +799,9 @@ renderSleepGrid();
 
 // Set today as default date
 document.getElementById('in-date').valueAsDate = new Date();
+
+// Show morning fields by default since Morgen is selected
+toggleMorningFields();
 
 // Initialize - load from GitHub first
 (async function init() {
