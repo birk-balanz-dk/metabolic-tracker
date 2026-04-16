@@ -384,10 +384,16 @@
 <script>
 document.getElementById('current-date').textContent = new Date().toLocaleDateString('da-DK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+// GitHub configuration
+const GITHUB_OWNER = 'birk-balanz-dk';
+const GITHUB_REPO = 'metabolic-tracker';
+const GITHUB_DATA_PATH = 'data/metabolic-data.json';
+const GITHUB_TOKEN_KEY = 'github-token';
+
 const STORAGE_KEY = 'metabolic-logs-v1';
 const SLEEP_KEY = 'amazfit-sleep-v1';
 
-let logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let logs = [];
 let sleepData = JSON.parse(localStorage.getItem(SLEEP_KEY) || JSON.stringify([
   { date: 'Mar 20', deep: 68, rem: 100, shallow: 320 },
   { date: 'Mar 21', deep: 63, rem: 125, shallow: 348 },
@@ -408,7 +414,97 @@ let sleepData = JSON.parse(localStorage.getItem(SLEEP_KEY) || JSON.stringify([
 
 let charts = {};
 
-function saveLogs() { localStorage.setItem(STORAGE_KEY, JSON.stringify(logs)); }
+// GitHub sync functions
+async function getGitHubToken() {
+  let token = localStorage.getItem(GITHUB_TOKEN_KEY);
+  if (!token) {
+    token = prompt('Indtast dit GitHub Personal Access Token:\n\n(Gemmes kun på denne device)');
+    if (token) {
+      localStorage.setItem(GITHUB_TOKEN_KEY, token);
+    }
+  }
+  return token;
+}
+
+async function loadFromGitHub() {
+  const token = await getGitHubToken();
+  if (!token) {
+    console.log('No GitHub token - using localStorage fallback');
+    logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return;
+  }
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_DATA_PATH}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const content = atob(data.content);
+      logs = JSON.parse(content);
+      console.log('Loaded data from GitHub:', logs.length, 'entries');
+    } else {
+      console.log('GitHub fetch failed, using localStorage');
+      logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
+  } catch (error) {
+    console.error('GitHub sync error:', error);
+    logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  }
+}
+
+async function saveToGitHub() {
+  const token = await getGitHubToken();
+  if (!token) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+    return;
+  }
+
+  try {
+    // Get current file SHA
+    const getResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_DATA_PATH}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    const currentFile = await getResponse.json();
+    const content = btoa(JSON.stringify(logs, null, 2));
+
+    // Update file
+    const putResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_DATA_PATH}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `Update metabolic data - ${new Date().toISOString()}`,
+        content: content,
+        sha: currentFile.sha
+      })
+    });
+
+    if (putResponse.ok) {
+      console.log('Data saved to GitHub');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(logs)); // Backup
+    } else {
+      console.error('GitHub save failed');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+    }
+  } catch (error) {
+    console.error('GitHub sync error:', error);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+  }
+}
+
+function saveLogs() { saveToGitHub(); }
 function saveSleep() { localStorage.setItem(SLEEP_KEY, JSON.stringify(sleepData)); }
 
 function calcBozRatio(g, k) {
@@ -513,13 +609,14 @@ function logEntry() {
 function renderTable() {
   const tbody = document.getElementById('log-tbody');
   if (logs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="color: var(--muted); text-align: center; padding: 2rem;">No entries yet</td></tr>';
     return;
   }
   tbody.innerHTML = [...logs].reverse().map(l => `
     <tr>
       <td>${l.date}</td>
-      <td style="color: var(--accent); font-weight: 600;">${l.timeofday || '—'}</td>
+      <td style="color: var(--muted)">${l.timestamp || '—'}</td>
+      <td><span style="padding:3px 8px;border-radius:4px;background:${l.timeofday === 'Morgen' ? 'rgba(200,245,96,0.15)' : 'rgba(96,200,245,0.15)'};color:${l.timeofday === 'Morgen' ? 'var(--accent)' : 'var(--accent2)'};font-size:11px;font-weight:700;">${l.timeofday || '—'}</span></td>
       <td style="color:${l.glucose ? (l.glucose < 5.6 ? '#60f5a2' : l.glucose < 7 ? '#f5d060' : '#f56060') : 'var(--muted)'}">${l.glucose ? l.glucose.toFixed(1) : '—'}</td>
       <td style="color:${l.ketones ? (l.ketones >= 0.5 ? '#60c8f5' : 'var(--muted)') : 'var(--muted)'}">${l.ketones ? l.ketones.toFixed(1) : '—'}</td>
       <td style="color:${l.boz ? bozColor(l.boz) : 'var(--muted)'}">${l.boz || '—'}</td>
@@ -653,15 +750,20 @@ charts.sleep = new Chart(document.getElementById('c-sleep'), {
 });
 
 renderSleepGrid();
-renderTable();
-document.getElementById('m-days').textContent = logs.length;
-if (logs.length > 0) {
-  const last = logs[logs.length - 1];
-  if (last.glucose) document.getElementById('m-glucose').innerHTML = last.glucose.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
-  if (last.ketones) document.getElementById('m-ketones').innerHTML = last.ketones.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
-  if (last.boz) { document.getElementById('m-boz').textContent = last.boz; document.getElementById('m-boz').style.color = bozColor(last.boz); }
-  updateCharts();
-}
+
+// Initialize - load from GitHub first
+(async function init() {
+  await loadFromGitHub();
+  renderTable();
+  document.getElementById('m-days').textContent = logs.length;
+  if (logs.length > 0) {
+    const last = logs[logs.length - 1];
+    if (last.glucose) document.getElementById('m-glucose').innerHTML = last.glucose.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
+    if (last.ketones) document.getElementById('m-ketones').innerHTML = last.ketones.toFixed(1) + '<span class="metric-unit"> mmol/L</span>';
+    if (last.boz) { document.getElementById('m-boz').textContent = last.boz; document.getElementById('m-boz').style.color = bozColor(last.boz); }
+    updateCharts();
+  }
+})();
 </script>
 </body>
 </html>
