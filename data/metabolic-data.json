@@ -1,1 +1,73 @@
-[]
+[
+  {
+    "date": "15. apr",
+    "timestamp": "07:00",
+    "timeofday": "Morgen",
+    "glucose": 6.5,
+    "ketones": null,
+    "boz": null,
+    "weight": 89.8,
+    "energy": null,
+    "clarity": null,
+    "sleepScore": null,
+    "stress": null,
+    "notes": null
+  },
+  {
+    "date": "15. apr",
+    "timestamp": "20:00",
+    "timeofday": "Aften",
+    "glucose": 6.6,
+    "ketones": 0.3,
+    "boz": 396,
+    "weight": 89.8,
+    "energy": null,
+    "clarity": null,
+    "sleepScore": null,
+    "stress": null,
+    "notes": null
+  },
+  {
+    "date": "16. apr",
+    "timestamp": "07:00",
+    "timeofday": "Morgen",
+    "glucose": 7.0,
+    "ketones": 0.1,
+    "boz": 1260,
+    "weight": 89.7,
+    "energy": null,
+    "clarity": null,
+    "sleepScore": null,
+    "stress": null,
+    "notes": null
+  },
+  {
+    "date": "16. apr",
+    "timestamp": "20:00",
+    "timeofday": "Aften",
+    "glucose": 4.6,
+    "ketones": 0.2,
+    "boz": 414,
+    "weight": 89.7,
+    "energy": null,
+    "clarity": null,
+    "sleepScore": null,
+    "stress": null,
+    "notes": null
+  },
+  {
+    "date": "17. apr",
+    "timestamp": "07:00",
+    "timeofday": "Morgen",
+    "glucose": 5.1,
+    "ketones": 0.1,
+    "boz": 918,
+    "weight": 89.15,
+    "energy": null,
+    "clarity": null,
+    "sleepScore": null,
+    "stress": null,
+    "notes": null
+  }
+]
+
