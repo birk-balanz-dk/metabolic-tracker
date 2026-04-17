@@ -431,6 +431,7 @@ let sleepData = JSON.parse(localStorage.getItem(SLEEP_KEY) || JSON.stringify([
 ]));
 
 let charts = {};
+let githubLoadedSuccessfully = false; // Safety flag
 
 // GitHub sync functions
 async function getGitHubToken() {
@@ -449,6 +450,7 @@ async function loadFromGitHub() {
   if (!token) {
     console.log('No GitHub token - using localStorage fallback');
     logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    githubLoadedSuccessfully = false;
     return;
   }
 
@@ -464,18 +466,30 @@ async function loadFromGitHub() {
       const data = await response.json();
       const content = atob(data.content);
       logs = JSON.parse(content);
-      console.log('Loaded data from GitHub:', logs.length, 'entries');
+      githubLoadedSuccessfully = true; // Mark as successful
+      console.log('✓ Loaded data from GitHub:', logs.length, 'entries');
     } else {
-      console.log('GitHub fetch failed, using localStorage');
+      console.error('GitHub fetch failed with status:', response.status);
       logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      githubLoadedSuccessfully = false;
+      alert('⚠️ GitHub load failed. Using local data only. DO NOT log new entries until fixed.');
     }
   } catch (error) {
     console.error('GitHub sync error:', error);
     logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    githubLoadedSuccessfully = false;
+    alert('⚠️ GitHub connection error. Using local data only. DO NOT log new entries until fixed.');
   }
 }
 
 async function saveToGitHub() {
+  // SAFETY CHECK: Never save to GitHub if initial load failed
+  if (!githubLoadedSuccessfully) {
+    console.error('⚠️ BLOCKED: Cannot save to GitHub - initial load failed');
+    alert('⚠️ Cannot save: GitHub data was not loaded successfully. Fix connection first.');
+    return;
+  }
+
   const token = await getGitHubToken();
   if (!token) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
@@ -510,11 +524,12 @@ async function saveToGitHub() {
     });
 
     if (putResponse.ok) {
-      console.log('Data saved to GitHub');
+      console.log('✓ Data saved to GitHub');
       localStorage.setItem(STORAGE_KEY, JSON.stringify(logs)); // Backup
     } else {
       console.error('GitHub save failed');
       localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+      alert('⚠️ GitHub save failed. Data saved locally only.');
     }
   } catch (error) {
     console.error('GitHub sync error:', error);
