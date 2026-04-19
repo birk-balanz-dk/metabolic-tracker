@@ -618,15 +618,18 @@ function switchTab(name, btn) {
 function updateCharts() {
   const labels = logs.map(l => l.date);
 
-  // Sleep & Stress chart
+  // Sleep & Stress chart - filter to only morning measurements
+  const morningLogs = logs.filter(l => l.timeofday === 'Morgen');
+  const morningLabels = morningLogs.map(l => l.date);
+  
   if (charts.sleepstress) charts.sleepstress.destroy();
   charts.sleepstress = new Chart(document.getElementById('c-sleepstress'), {
     type: 'line',
     data: {
-      labels,
+      labels: morningLabels,
       datasets: [
-        { label: 'Sleep Score', data: logs.map(l => l.sleepScore), borderColor: '#60c8f5', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#60c8f5', yAxisID: 'y' },
-        { label: 'Stress Level', data: logs.map(l => l.stress), borderColor: '#f5a260', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#f5a260', yAxisID: 'y' }
+        { label: 'Sleep Score', data: morningLogs.map(l => l.sleepScore), borderColor: '#60c8f5', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#60c8f5', spanGaps: true },
+        { label: 'Stress Level', data: morningLogs.map(l => l.stress), borderColor: '#f5a260', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#f5a260', spanGaps: true }
       ]
     },
     options: { 
@@ -655,10 +658,20 @@ function updateCharts() {
 
   if (charts.boz) charts.boz.destroy();
   charts.boz = new Chart(document.getElementById('c-boz'), {
-    type: 'bar',
+    type: 'line',
     data: {
       labels,
-      datasets: [{ label: 'Dr. Boz ratio', data: logs.map(l => l.boz), backgroundColor: logs.map(l => l.boz ? bozColor(l.boz) : '#444') }]
+      datasets: [{ 
+        label: 'Dr. Boz ratio', 
+        data: logs.map(l => l.boz), 
+        borderColor: '#c8f560', 
+        backgroundColor: 'transparent', 
+        tension: 0.3, 
+        pointRadius: 5,
+        pointBackgroundColor: logs.map(l => l.boz ? bozColor(l.boz) : '#444'),
+        pointBorderColor: logs.map(l => l.boz ? bozColor(l.boz) : '#444'),
+        pointBorderWidth: 2
+      }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }, x: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } } } }
   });
