@@ -224,25 +224,19 @@
       <div class="metric-value" id="m-boz">—</div>
       <div class="metric-status" id="s-boz" style="color: var(--muted)">no data yet</div>
     </div>
-    <div class="metric" style="--accent-color: #7F77DD">
-      <div class="metric-label">Deep sleep avg</div>
-      <div class="metric-value" id="m-deep">79<span class="metric-unit"> min</span></div>
-      <div class="metric-status" style="color: var(--warn)">room to improve</div>
-    </div>
     <div class="metric" style="--accent-color: var(--good)">
       <div class="metric-label">Resting HR avg</div>
       <div class="metric-value" id="m-hr">55<span class="metric-unit"> bpm</span></div>
       <div class="metric-status" style="color: var(--good)">good</div>
     </div>
-    <div class="metric" style="--accent-color: var(--accent)">
+    <div class="metric" style="--accent-color: #7F77DD">
       <div class="metric-label">Days tracked</div>
       <div class="metric-value" id="m-days">0</div>
       <div class="metric-status" style="color: var(--muted)">experiment</div>
     </div>
   </div>
 
-  <div class="grid-2">
-    <div class="card">
+  <div class="card" style="margin-bottom: 1.5rem;">
       <div class="card-title">Log today</div>
       <div class="log-form">
         <div class="form-row">
@@ -306,40 +300,32 @@
   <div class="card full-card">
     <div class="card-title">Trends</div>
     <div class="tab-row">
-      <button class="tab active" onclick="switchTab('sleep', this)">Sleep</button>
+      <button class="tab active" onclick="switchTab('sleepstress', this)">Sleep & Stress</button>
       <button class="tab" onclick="switchTab('glucose', this)">Glucose & ketones</button>
       <button class="tab" onclick="switchTab('boz', this)">Dr. Boz ratio</button>
       <button class="tab" onclick="switchTab('scores', this)">Energy & clarity</button>
       <button class="tab" onclick="switchTab('weight', this)">Weight</button>
     </div>
-    <div id="tab-sleep"><div class="chart-wrap"><canvas id="c-sleep"></canvas></div></div>
+    <div id="tab-sleepstress"><div class="chart-wrap"><canvas id="c-sleepstress"></canvas></div></div>
     <div id="tab-glucose" style="display:none"><div class="chart-wrap"><canvas id="c-glucose"></canvas></div></div>
     <div id="tab-boz" style="display:none"><div class="chart-wrap"><canvas id="c-boz"></canvas></div></div>
     <div id="tab-scores" style="display:none"><div class="chart-wrap"><canvas id="c-scores"></canvas></div></div>
     <div id="tab-weight" style="display:none"><div class="chart-wrap"><canvas id="c-weight"></canvas></div></div>
   </div>
 
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-title">Sleep — last 7 nights (Amazfit)</div>
-      <div class="sleep-grid" id="sleep-grid"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Data backup & sync</div>
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <button onclick="exportData()" style="background:var(--accent);color:#0f0f0f;border:none;border-radius:6px;padding:12px 20px;font-family:var(--mono);font-size:13px;letter-spacing:0.1em;cursor:pointer;font-weight:700;text-transform:uppercase;">
-          ↓ Export JSON
-        </button>
-        <div class="upload-area" onclick="document.getElementById('data-import').click()">
-          <div class="upload-label">↑ Import JSON</div>
-          <div class="upload-label" style="margin-top:4px;font-size:11px;">Restore from backup</div>
-          <input type="file" id="data-import" accept=".json" style="display:none" onchange="importData(this)">
-        </div>
-        <div style="font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.6;">
-          Export creates backup file.<br>
-          Import on other device to sync.
-        </div>
+  <div class="card full-card">
+    <div class="card-title">Data backup & sync</div>
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:500px;">
+      <button onclick="exportData()" style="background:var(--accent);color:#0f0f0f;border:none;border-radius:6px;padding:12px 20px;font-family:var(--mono);font-size:13px;letter-spacing:0.1em;cursor:pointer;font-weight:700;text-transform:uppercase;">
+        ↓ Export JSON
+      </button>
+      <div class="upload-area" onclick="document.getElementById('data-import').click()">
+        <div class="upload-label">↑ Import JSON</div>
+        <div class="upload-label" style="margin-top:4px;font-size:11px;">Restore from backup</div>
+        <input type="file" id="data-import" accept=".json" style="display:none" onchange="importData(this)">
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.6;">
+        Export creates backup file. Import on other device to sync.
       </div>
     </div>
   </div>
@@ -411,26 +397,8 @@
 document.getElementById('current-date').textContent = new Date().toLocaleDateString('da-DK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
 const STORAGE_KEY = 'metabolic-logs-v1';
-const SLEEP_KEY = 'amazfit-sleep-v1';
 
 let logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-let sleepData = JSON.parse(localStorage.getItem(SLEEP_KEY) || JSON.stringify([
-  { date: 'Mar 20', deep: 68, rem: 100, shallow: 320 },
-  { date: 'Mar 21', deep: 63, rem: 125, shallow: 348 },
-  { date: 'Mar 22', deep: 191, rem: 108, shallow: 384 },
-  { date: 'Mar 23', deep: 68, rem: 142, shallow: 306 },
-  { date: 'Mar 24', deep: 64, rem: 107, shallow: 358 },
-  { date: 'Mar 25', deep: 80, rem: 135, shallow: 313 },
-  { date: 'Mar 26', deep: 75, rem: 113, shallow: 355 },
-  { date: 'Mar 27', deep: 61, rem: 95, shallow: 341 },
-  { date: 'Mar 28', deep: 52, rem: 80, shallow: 370 },
-  { date: 'Mar 29', deep: 84, rem: 121, shallow: 345 },
-  { date: 'Mar 30', deep: 51, rem: 86, shallow: 376 },
-  { date: 'Mar 31', deep: 61, rem: 127, shallow: 310 },
-  { date: 'Apr 1', deep: 74, rem: 110, shallow: 368 },
-  { date: 'Apr 2', deep: 66, rem: 106, shallow: 339 },
-  { date: 'Apr 3', deep: 53, rem: 121, shallow: 301 },
-]));
 
 let charts = {};
 
@@ -438,10 +406,6 @@ let charts = {};
 function saveLogs() { 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
   console.log('✓ Data saved locally:', logs.length, 'entries');
-}
-
-function saveSleep() { 
-  localStorage.setItem(SLEEP_KEY, JSON.stringify(sleepData)); 
 }
 
 // Export data as JSON file
@@ -643,58 +607,38 @@ function renderTable() {
   `).join('');
 }
 
-function renderSleepGrid() {
-  const grid = document.getElementById('sleep-grid');
-  const last7 = sleepData.slice(-7);
-  grid.innerHTML = last7.map(d => {
-    const col = d.deep >= 90 ? '#60f5a2' : d.deep >= 60 ? '#f5d060' : '#f56060';
-    return `<div class="sleep-day">
-      <div class="sleep-date">${d.date}</div>
-      <div class="sleep-deep" style="color:${col}">${d.deep}</div>
-      <div class="sleep-type">deep</div>
-      <div class="sleep-type" style="color:#7F77DD;margin-top:4px">${d.rem}</div>
-      <div class="sleep-type">rem</div>
-    </div>`;
-  }).join('');
-
-  const avgDeep = Math.round(sleepData.reduce((a,b) => a + b.deep, 0) / sleepData.length);
-  document.getElementById('m-deep').innerHTML = avgDeep + '<span class="metric-unit"> min</span>';
-}
-
-function parseSleepCSV(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const lines = e.target.result.split('\n').filter(l => l.trim() && !l.startsWith('date'));
-    const parsed = lines.map(line => {
-      const [date, deep, shallow, wake, start, stop, rem] = line.split(',');
-      if (!date || !deep) return null;
-      const d = new Date(date);
-      const label = d.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' });
-      return { date: label, deep: parseInt(deep) || 0, rem: parseInt(rem) || 0, shallow: parseInt(shallow) || 0 };
-    }).filter(Boolean);
-    if (parsed.length > 0) {
-      sleepData = parsed;
-      saveSleep();
-      renderSleepGrid();
-      updateCharts();
-      document.getElementById('upload-status').textContent = parsed.length + ' nights imported';
-    }
-  };
-  reader.readAsText(file);
-}
-
 function switchTab(name, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  ['sleep','glucose','boz','scores','weight'].forEach(t => {
+  ['sleepstress','glucose','boz','scores','weight'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
   });
 }
 
 function updateCharts() {
   const labels = logs.map(l => l.date);
+
+  // Sleep & Stress chart
+  if (charts.sleepstress) charts.sleepstress.destroy();
+  charts.sleepstress = new Chart(document.getElementById('c-sleepstress'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Sleep Score', data: logs.map(l => l.sleepScore), borderColor: '#60c8f5', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#60c8f5', yAxisID: 'y' },
+        { label: 'Stress Level', data: logs.map(l => l.stress), borderColor: '#f5a260', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointBackgroundColor: '#f5a260', yAxisID: 'y' }
+      ]
+    },
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      plugins: { legend: { display: true, labels: { color: '#888884', font: { family: 'DM Mono', size: 11 } } } }, 
+      scales: { 
+        y: { min: 0, max: 100, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }, 
+        x: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } } 
+      } 
+    }
+  });
 
   if (charts.glucose) charts.glucose.destroy();
   charts.glucose = new Chart(document.getElementById('c-glucose'), {
@@ -742,29 +686,6 @@ function updateCharts() {
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }, x: { ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } } } }
   });
 }
-
-if (charts.sleep) charts.sleep.destroy();
-charts.sleep = new Chart(document.getElementById('c-sleep'), {
-  type: 'bar',
-  data: {
-    labels: sleepData.map(d => d.date),
-    datasets: [
-      { label: 'Deep', data: sleepData.map(d => d.deep), backgroundColor: '#185FA5', stack: 's' },
-      { label: 'REM', data: sleepData.map(d => d.rem), backgroundColor: '#7F77DD', stack: 's' },
-      { label: 'Shallow', data: sleepData.map(d => d.shallow), backgroundColor: '#2a2a2a', stack: 's' }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: true, labels: { color: '#888884', font: { family: 'DM Mono', size: 11 } } } },
-    scales: {
-      x: { stacked: true, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 }, maxRotation: 45, autoSkip: false } },
-      y: { stacked: true, ticks: { color: '#888884', font: { family: 'DM Mono', size: 10 } } }
-    }
-  }
-});
-
-renderSleepGrid();
 
 // Set today as default date
 document.getElementById('in-date').valueAsDate = new Date();
